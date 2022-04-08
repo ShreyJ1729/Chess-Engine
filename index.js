@@ -9,7 +9,7 @@ const PIECE_VALUES = {
   k: 900,
 };
 
-const shuffleArray = array => {
+const shuffleArray = (array) => {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     const temp = array[i];
@@ -17,7 +17,7 @@ const shuffleArray = array => {
     array[j] = temp;
   }
   return array;
-}
+};
 
 const getFrequency = (string) => {
   var freq = {};
@@ -55,14 +55,17 @@ class ChessGame {
       moveSpeed: "10",
       onDragStart: this.onDragStart.bind(this),
       onDrop: this.onPieceDrop.bind(this),
-      onSnapEnd: () => {this.board.position(this.game.fen())} // in case of pawn promotion
+      onSnapEnd: () => {
+        this.board.position(this.game.fen());
+        // onDragendHandler();
+      }, // in case of pawn promotion
     });
-    
-    this.cPlayer = new ComputerPlayer(this.game, "minimax", 3, "b");
 
+    this.cPlayer = new ComputerPlayer(this.game, "minimax", 3, "b");
   }
   // don't move the other side's pieces
   onDragStart(source, piece, position, orientation) {
+    // onDragstartHandler();
     if (piece.includes("b")) return false;
   }
 
@@ -78,11 +81,11 @@ class ChessGame {
   }
 
   onPieceDrop(source, target, piece, newPos, oldPos, orientation) {
-    let desiredMove = { from: source, to: target, promotion: 'q'};
+    let desiredMove = { from: source, to: target, promotion: "q" };
 
     // check for pawn promotion
     if (this.isPawnPromoted(source, target, piece)) {
-        desiredMove.promotion = "q";
+      desiredMove.promotion = "q";
     }
 
     // snapback if move is invalid
@@ -90,18 +93,13 @@ class ChessGame {
       return "snapback";
     }
 
-    console.log(
-      "Player moved:",
-      source,
-      target,
-      piece,
-    );
+    console.log("Player moved:", source, target, piece);
 
     // check for endgame conditions
     if (this.checkGameOver().over) {
-        this.endGame();
-        return;
-      }
+      this.endGame();
+      return;
+    }
 
     // run computer move after 100ms delay
     this.timeoutID = setTimeout(() => {
@@ -120,7 +118,9 @@ class ChessGame {
     console.log(data);
 
     if (data.checkmate) {
-      $("#gameStatus").text(this.game.turn() + " was checkmated\n" + JSON.stringify(data));
+      $("#gameStatus").text(
+        this.game.turn() + " was checkmated\n" + JSON.stringify(data)
+      );
     } else if (data.draw) {
       $("#gameStatus").text("draw\n" + JSON.stringify(data));
     }
@@ -150,125 +150,125 @@ class ChessGame {
   }
 }
 
-
 class ComputerPlayer {
-    constructor(game, algorithm, searchDepth) {
-        this.algorithm = algorithm;
-        this.searchDepth = searchDepth;
-        this.color = "b";
-        this.game = game;
+  constructor(game, algorithm, searchDepth) {
+    this.algorithm = algorithm;
+    this.searchDepth = searchDepth;
+    this.color = "b";
+    this.game = game;
+  }
+
+  move() {
+    let [move, score] = this.minimax(
+      this.game,
+      3,
+      true,
+      this.evaluateBoard(this.game, this.color),
+      this.color,
+      true
+    );
+
+    console.log("computer minimax result: ", move, score);
+    if (move == null) {
+      console.log("minimax unconclusive, d-oing random move");
+      move = this.getRandomMove();
     }
 
-    move () {
-        let [move, score] = this.minimax(
-          this.game,
-          3,
-          true,
-          this.evaluateBoard(this.game, this.color),
-          this.color,
-          true
-        );
-
-        console.log("computer minimax result: ", move, score);
-        if (move == null) {
-            console.log("minimax unconclusive, d-oing random move");
-            move = this.getRandomMove();
-        }
-
-        // only promote to queen if available
-        if (["r", "n", "b"].includes(move.promotion)) {
-          move.promotion = "q";
-        }
-
-        return move;
+    // only promote to queen if available
+    if (["r", "n", "b"].includes(move.promotion)) {
+      move.promotion = "q";
     }
-    
-      minimax(state, depth, isMaximizing, score, color, topMost=false) {
-        // let moves = state.moves({ verbose: true })
-        let moves = shuffleArray(state.moves({ verbose: true }))
-          
-        let bestMove;
-        let bestScore = isMaximizing
-          ? Number.NEGATIVE_INFINITY
-          : Number.POSITIVE_INFINITY;
 
-        // for depth 1, iterate over possible moves and return the one with best eval score
-        if (depth === 1) {
-          for (let i = 0; i < moves.length; i++) {
-            let currMove = moves[i];
-            state.move(currMove);
-            let currScore = this.evaluateBoard(state, color);
-            state.undo();
-            if (currScore != score) console.log(" ", currMove.from, currMove.to, currScore,);
-            
-            if (
-                (isMaximizing && currScore > bestScore) ||
-                (!isMaximizing && currScore < bestScore) ||
-                i == 0
-              ) {
-                bestMove = currMove;
-                bestScore = currScore;
-                console.log(" newbest", currMove.from, currMove.to, currScore,);
-              }
-          }
+    return move;
+  }
 
-          return [bestMove, bestScore];
+  minimax(state, depth, isMaximizing, score, color, topMost = false) {
+    // let moves = state.moves({ verbose: true })
+    let moves = shuffleArray(state.moves({ verbose: true }));
+
+    let bestMove;
+    let bestScore = isMaximizing
+      ? Number.NEGATIVE_INFINITY
+      : Number.POSITIVE_INFINITY;
+
+    // for depth 1, iterate over possible moves and return the one with best eval score
+    if (depth === 1) {
+      for (let i = 0; i < moves.length; i++) {
+        let currMove = moves[i];
+        state.move(currMove);
+        let currScore = this.evaluateBoard(state, color);
+        state.undo();
+        if (currScore != score)
+          console.log(" ", currMove.from, currMove.to, currScore);
+
+        if (
+          (isMaximizing && currScore > bestScore) ||
+          (!isMaximizing && currScore < bestScore) ||
+          i == 0
+        ) {
+          bestMove = currMove;
+          bestScore = currScore;
+          console.log(" newbest", currMove.from, currMove.to, currScore);
         }
-
-        // depth > 1
-        // perform each possible move, recurse and record results, then undo
-        for (var i = 0; i < moves.length; i++) {
-          let currMove = moves[i];
-          state.move(currMove);
-          let currScore = this.evaluateBoard(state, color);
-          let [childBestMove, childScore] = this.minimax(
-            state,
-            depth - 1,
-            !isMaximizing,
-            currScore,
-            color
-          );
-          state.undo();
-
-          if (
-            (isMaximizing && childScore > bestScore) ||
-            (!isMaximizing && childScore < bestScore) || 
-            i == 0
-          ) {
-            bestMove = currMove;
-            bestScore = childScore;
-            // if (topMost) console.log(currMove.from, currMove.to, childScore);
-          }
-        }
-
-        return [bestMove, bestScore];
       }
 
-      evaluateBoard(state, color) {
-        let fen = state.fen().split(" ")[0];
-        let freq = getFrequency(fen);
-    
-        // get scores from piece values
-        let score = 0;
-        for (const [piece, count] of Object.entries(freq)) {
-          // add own side's pieces + subtract opponent's pieces
-          if (isCapital(piece)) {
-            score += PIECE_VALUES[piece.toLowerCase()] * count;
-          } else {
-            score -= PIECE_VALUES[piece.toLowerCase()] * count;
-          }
-        }
-    
-        if (color == "b") score *= -1;
-    
-        // use state.board() to account for positional play in score
-    
-        return score;
+      return [bestMove, bestScore];
+    }
+
+    // depth > 1
+    // perform each possible move, recurse and record results, then undo
+    for (var i = 0; i < moves.length; i++) {
+      let currMove = moves[i];
+      state.move(currMove);
+      let currScore = this.evaluateBoard(state, color);
+      let [childBestMove, childScore] = this.minimax(
+        state,
+        depth - 1,
+        !isMaximizing,
+        currScore,
+        color
+      );
+      state.undo();
+
+      if (
+        (isMaximizing && childScore > bestScore) ||
+        (!isMaximizing && childScore < bestScore) ||
+        i == 0
+      ) {
+        bestMove = currMove;
+        bestScore = childScore;
+        // if (topMost) console.log(currMove.from, currMove.to, childScore);
       }
-    
-      getRandomMove() {
-        return this.game.moves()[Math.floor(Math.random() * moves.length)];
+    }
+
+    return [bestMove, bestScore];
+  }
+
+  evaluateBoard(state, color) {
+    let fen = state.fen().split(" ")[0];
+    let freq = getFrequency(fen);
+
+    // get scores from piece values
+    let score = 0;
+    for (const [piece, count] of Object.entries(freq)) {
+      // add own side's pieces + subtract opponent's pieces
+      if (isCapital(piece)) {
+        score += PIECE_VALUES[piece.toLowerCase()] * count;
+      } else {
+        score -= PIECE_VALUES[piece.toLowerCase()] * count;
       }
+    }
+
+    if (color == "b") score *= -1;
+
+    // use state.board() to account for positional play in score
+
+    return score;
+  }
+
+  getRandomMove() {
+    return this.game.moves()[Math.floor(Math.random() * moves.length)];
+  }
 }
 
 const initializeGame = () => {
@@ -296,3 +296,22 @@ $("#resetButton").on("click", () => {
 $("#startButton").on("click", () => {
   chessGame.run();
 });
+
+// scrollable = true;
+
+// prevent scroll on drag for mobile
+function preventScroll(e) {
+  // if (!scrollable) {
+    e.preventDefault();
+  // }
+}
+
+document.getElementById("board").addEventListener("touchmove", preventScroll, { passive: false });
+
+// function onDragstartHandler() {
+//   scrollable = false;
+// }
+
+// function onDragendHandler() {
+//   scrollable = true;
+// }
