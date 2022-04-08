@@ -120,7 +120,7 @@ class ChessGame {
     console.log(data);
 
     if (data.checkmate) {
-      $("#gameStatus").text(this.game.turn() + " was checkmated");
+      $("#gameStatus").text(this.game.turn() + " was checkmated\n" + JSON.stringify(data));
     } else if (data.draw) {
       $("#gameStatus").text("draw\n" + JSON.stringify(data));
     }
