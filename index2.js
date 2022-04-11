@@ -9,6 +9,16 @@ const PIECE_VALUES = {
   k: 900,
 };
 
+const shuffleArray = (array) => {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const temp = array[i];
+    array[i] = array[j];
+    array[j] = temp;
+  }
+  return array;
+};
+
 const getFrequency = (string) => {
   var freq = {};
   for (var i = 0; i < string.length; i++) {
@@ -34,17 +44,8 @@ const isCapital = (ch) => {
 };
 
 class ChessGame {
-  constructor(whitePlayer) {
-    this.white = whitePlayer;
-    this.black = "c";
-
-    // determine gameMode
-    if (this.white == "h") this.gameMode = "hvc";
-    else this.gameMode = "cvc";
-
-    console.log("Game Mode:", this.gameMode);
-
-    // initialist game state and board UI
+  constructor() {
+    // initialize game, computer player, and board UI
     this.game = new Chess();
     this.board = Chessboard("board", {
       draggable: this.gameMode == "cvc" ? false : true, // lock board in cvc gameMode
@@ -52,27 +53,20 @@ class ChessGame {
       showErrors: "console",
       position: "start",
       moveSpeed: "10",
-      orientation: this.getInitialOrientation(),
-      onDragStart: this.onPlayerDragStart.bind(this),
+      onDragStart: this.onDragStart.bind(this),
       onDrop: this.onPieceDrop.bind(this),
+      onSnapEnd: () => {
+        this.board.position(this.game.fen());
+        // onDragendHandler();
+      }, // in case of pawn promotion
     });
-  }
 
-  // gets initial board UI orientation from gameMode
-  getInitialOrientation() {
-    if (this.white == this.black) return "white";
-    if (this.white == "h") return "white";
-    return "black";
+    this.cPlayer = new ComputerPlayer(this.game, "minimax", 3, "b");
   }
-
   // don't move the other side's pieces
-  onPlayerDragStart(source, piece, position, orientation) {
-    if (
-      (orientation === "white" && piece.includes("b")) ||
-      (orientation === "black" && piece.includes("w"))
-    ) {
-      return false;
-    }
+  onDragStart(source, piece, position, orientation) {
+    // onDragstartHandler();
+    if (piece.includes("b")) return false;
   }
 
   isPawnPromoted(source, target, piece) {
@@ -87,34 +81,19 @@ class ChessGame {
   }
 
   onPieceDrop(source, target, piece, newPos, oldPos, orientation) {
-    let desiredMove = { from: source, to: target };
+    let desiredMove = { from: source, to: target, promotion: "q" };
 
     // check for pawn promotion
     if (this.isPawnPromoted(source, target, piece)) {
       desiredMove.promotion = "q";
     }
 
-    // validate the move
+    // snapback if move is invalid
     if (this.game.move(desiredMove) == null) {
       return "snapback";
     }
 
-    // update board to match fen in case of pawn promotion
-    setTimeout(() => {
-      this.board.position(this.game.fen());
-    }, 10);
-
-    console.log(
-      "Player moved:",
-      source,
-      target,
-      piece,
-      oldPos,
-      newPos,
-      orientation
-    );
-
-    console.log(this.game.board());
+    console.log("Player moved:", source, target, piece);
 
     // check for endgame conditions
     if (this.checkGameOver().over) {
@@ -122,53 +101,146 @@ class ChessGame {
       return;
     }
 
-    // run computer move
-    this.timeoutID = setTimeout(this.computerMove.bind(this), 100);
+    // run computer move after 100ms delay
+    this.timeoutID = setTimeout(() => {
+      let computerMove = this.cPlayer.move();
+      this.game.move(computerMove);
+      this.board.position(this.game.fen());
+      if (this.checkGameOver().over) {
+        this.endGame();
+        return;
+      }
+    }, 100);
   }
 
-  computerMove() {
-    let moves = this.game.moves({ verbose: true });
+  endGame() {
+    let data = this.checkGameOver();
+    console.log(data);
 
-    let [move, score] = this.getOptimalMove(
+    if (data.checkmate) {
+      $("#gameStatus").text(
+        this.game.turn() + " was checkmated\n" + JSON.stringify(data)
+      );
+    } else if (data.draw) {
+      $("#gameStatus").text("draw\n" + JSON.stringify(data));
+    }
+
+    console.log(this.game.fen());
+    console.log(this.game.pgn());
+  }
+
+  reset() {
+    this.game.reset();
+    this.board.start();
+    clearTimeout(this.timeoutID);
+  }
+
+  checkGameOver() {
+    return {
+      over: this.game.game_over(),
+      checkmate: this.game.in_checkmate(),
+      draw: this.game.in_draw(),
+      stalemate: this.game.in_stalemate(),
+      insuff: this.game.insufficient_material(),
+      three_reps: this.game.in_threefold_repetition(),
+      fifty_reps: this.game.fen().split(" ")[4] == 100 ? true : false,
+      fen: this.game.fen(),
+      pgn: this.game.pgn(),
+    };
+  }
+}
+
+class ComputerPlayer {
+  constructor(game, algorithm, searchDepth) {
+    this.algorithm = algorithm;
+    this.searchDepth = searchDepth;
+    this.color = "b";
+    this.game = game;
+  }
+
+  move() {
+    let [move, score] = this.minimax(
       this.game,
       3,
       true,
-      this.evaluateBoard(this.game, this.game.turn()),
-      this.game.turn()
+      this.evaluateBoard(this.game, this.color),
+      this.color,
+      true
     );
 
-    console.log("optimal move:", move, score);
-    if (move == null)
-    {
-      console.log('doing random move')
-      move = this.getRandomMove(moves);
+    console.log("computer minimax result: ", move, score);
+    if (move == null) {
+      console.log("minimax unconclusive, d-oing random move");
+      move = this.getRandomMove();
     }
 
-    // only promote to queen
+    // only promote to queen if available
     if (["r", "n", "b"].includes(move.promotion)) {
       move.promotion = "q";
     }
 
-    this.game.move(move);
+    return move;
+  }
 
-    // render in case of pawn promotion
-    setTimeout(() => {
-      this.board.position(this.game.fen());
-    }, 10);
+  minimax(state, depth, isMaximizing, score, color, topMost = false) {
+    // let moves = state.moves({ verbose: true })
+    let moves = shuffleArray(state.moves({ verbose: true }));
 
-    console.log("computer moved:", move);
+    let bestMove;
+    let bestScore = isMaximizing
+      ? Number.NEGATIVE_INFINITY
+      : Number.POSITIVE_INFINITY;
 
-    // check endgame
-    if (this.checkGameOver().over) {
-      this.endGame();
-      return;
+    // for depth 1, iterate over possible moves and return the one with best eval score
+    if (depth === 1) {
+      for (let i = 0; i < moves.length; i++) {
+        let currMove = moves[i];
+        state.move(currMove);
+        let currScore = this.evaluateBoard(state, color);
+        state.undo();
+        if (currScore != score)
+          console.log(" ", currMove.from, currMove.to, currScore);
+
+        if (
+          (isMaximizing && currScore > bestScore) ||
+          (!isMaximizing && currScore < bestScore) ||
+          i == 0
+        ) {
+          bestMove = currMove;
+          bestScore = currScore;
+          console.log(" newbest", currMove.from, currMove.to, currScore);
+        }
+      }
+
+      return [bestMove, bestScore];
     }
 
-    // run next move if cvc
-    if (this.gameMode == "cvc") {
-      this.timeoutID = setTimeout(this.computerMove.bind(this), 300);
-      return;
+    // depth > 1
+    // perform each possible move, recurse and record results, then undo
+    for (var i = 0; i < moves.length; i++) {
+      let currMove = moves[i];
+      state.move(currMove);
+      let currScore = this.evaluateBoard(state, color);
+      let [childBestMove, childScore] = this.minimax(
+        state,
+        depth - 1,
+        !isMaximizing,
+        currScore,
+        color
+      );
+      state.undo();
+
+      if (
+        (isMaximizing && childScore > bestScore) ||
+        (!isMaximizing && childScore < bestScore) ||
+        i == 0
+      ) {
+        bestMove = currMove;
+        bestScore = childScore;
+      }
     }
+
+    return [bestMove, bestScore];
   }
 
   evaluateBoard(state, color) {
@@ -193,78 +265,8 @@ class ChessGame {
     return score;
   }
 
-  getOptimalMove(state, depth, isMaxPlayer, score, color) {
-    let moves = state.moves({verbose: true});
-    let bestMove;
-    let minVal = Number.POSITIVE_INFINITY;
-    let maxVal = Number.NEGATIVE_INFINITY;
-
-    if (depth === 0 || moves.length === 0) {
-      return [null, score];
-    }
-
-    for (var i = 0; i < moves.length; i++) {
-      let currMove = moves[i];
-      state.move(currMove);
-      let currScore = this.evaluateBoard(state, color);
-      let [childBestMove, childScore] = this.getOptimalMove(state, depth-1, !isMaxPlayer, currScore, color);
-      state.undo();
-
-      if (isMaxPlayer && childScore > maxVal) {
-        bestMove = currMove;
-        maxVal = childScore;
-      }
-      else if (childScore < minVal) {
-        bestMove = currMove;
-        minVal = childScore;
-      }
-    }
-
-    return isMaxPlayer ? [bestMove, maxVal] : [bestMove, minVal];
-  }
-
-  getRandomMove(moves) {
-    return moves[Math.floor(Math.random() * moves.length)];
-  }
-
-  endGame() {
-    let data = this.checkGameOver();
-    console.log(data);
-
-    if (data.checkmate) {
-      $("#gameStatus").text(this.game.turn() + " was checkmated");
-    } else if (data.draw) {
-      $("#gameStatus").text("draw\n" + JSON.stringify(data));
-    }
-
-    console.log(this.game.fen());
-    console.log(this.game.pgn());
-  }
-
-  reset() {
-    this.game.reset();
-    this.board.start();
-    clearTimeout(this.timeoutID);
-  }
-
-  run() {
-    if (this.gameMode == "cvc") {
-      this.timeoutID = setTimeout(this.computerMove.bind(this), 500);
-    }
-  }
-
-  checkGameOver() {
-    return {
-      over: this.game.game_over(),
-      checkmate: this.game.in_checkmate(),
-      draw: this.game.in_draw(),
-      stalemate: this.game.in_stalemate(),
-      insuff: this.game.insufficient_material(),
-      three_reps: this.game.in_threefold_repetition(),
-      fifty_reps: this.game.fen().split(" ")[4] == 100 ? true : false,
-      fen: this.game.fen(),
-      pgn: this.game.pgn(),
-    };
+  getRandomMove() {
+    return this.game.moves()[Math.floor(Math.random() * moves.length)];
   }
 }
 
@@ -285,10 +287,30 @@ $("#blackPlayer").on("change", () => {
   chessGame = initializeGame();
 });
 
-$("#resetButton").on("click", () =>{
+$("#resetButton").on("click", () => {
   chessGame.reset();
   $("#gameStatus").text("");
 });
+
 $("#startButton").on("click", () => {
   chessGame.run();
 });
+
+// scrollable = true;
+
+// prevent scroll on drag for mobile
+function preventScroll(e) {
+  // if (!scrollable) {
+    e.preventDefault();
+  // }
+}
+
+document.getElementById("board").addEventListener("touchmove", preventScroll, { passive: false });
+
+// function onDragstartHandler() {
+//   scrollable = false;
+// }
+
+// function onDragendHandler() {
+//   scrollable = true;
+// }

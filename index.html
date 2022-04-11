@@ -14,22 +14,26 @@
 <body>
     <div class="m-3">
         <div class="row">
-            <div class="col-lg-6 col-sm-12">
+            <div class="col-sm-12 col-md-12 col-lg-6">
                 <div class="mx-auto" id="board" style="width: 90%"></div>
             </div>
-            <div class="col-lg-6 col-sm-12">
+            <div class="col-sm-12 col-md-12 col-lg-6">
                 <button class="btn" id="resetButton">Reset Board</button>
                 <br />
                 <br />
-                <br /><br />
-                <p>The computer uses the minimax algorithm with a simple piece-count based evaluation function.</p>
+                <br />
+                <p>The computer uses the minimax algorithm (depth=4) with alpha-beta pruning using a simple piece-count based evaluation function.</p>
                 <ul>Todo
-                    <li>Implement alpha-beta pruning for speed</li>
                     <li>Improve eval function to take into account piece position</li>
-                    <li>show when computer thinking</li>
-                    <li>Make checkmates very high value in eval function</li>
+                    <li>Improve performance with move ordering</li>
+                    <li>Add profiling graph for different functions</li>
+                    <li>Port to Rust + Use WASM?</li>
+                    <li>Show computer's top x moves on screen</li>
                 </ul>
+                <p id="turnInfo"></p>
                 <p id="gameStatus"></p>
+                <p id="fen"></p>
+                <p id="pgn"></p>
             </div>
         </div>
     </div>
