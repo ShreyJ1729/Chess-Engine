@@ -22,18 +22,12 @@
                 <br />
                 <br />
                 <br />
-                <p>The computer uses the minimax algorithm (depth=4) with alpha-beta pruning using a simple piece-count based evaluation function.</p>
-                <ul>Todo
-                    <li>Improve eval function to take into account piece position</li>
-                    <li>Improve performance with move ordering</li>
-                    <li>Add profiling graph for different functions</li>
-                    <li>Port to Rust + Use WASM?</li>
-                    <li>Show computer's top x moves on screen</li>
-                </ul>
-                <p id="turnInfo"></p>
+                <p>The computer uses the minimax algorithm (depth=4) with alpha-beta pruning using a simple, static piece-count & piece-position based evaluation function.</p>
+                <strong><p id="turnInfo"></p></strong>
                 <p id="gameStatus"></p>
                 <p id="fen"></p>
                 <p id="pgn"></p>
+                <p>Estimated evaluation score (positive favors you): <span id="score"></span></p>
             </div>
         </div>
     </div>

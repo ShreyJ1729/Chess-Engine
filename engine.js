@@ -1,20 +1,13 @@
-importScripts("./chess-webworker.js", "./utils.js");
+importScripts("./chess-webworker.js", "./utils.js", "./pieceVals.js");
 
 const game = new Chess();
-const PIECE_VALUES = {
-  p: 100,
-  n: 300,
-  b: 300,
-  r: 500,
-  q: 900,
-  k: 1000,
-};
 
 onmessage = (e) => {
   game.load(e.data.fen);
-  let [move, score] = minimax(game, 4, true);
-  console.log(score);
-  postMessage({ move: move });
+  postMessage({ score: evaluate(game) });
+  const [move, score] = minimax(game, 4, true);
+  game.move(move);
+  postMessage({ move, score: evaluate(game)});
 };
 
 const minimax = (
@@ -65,14 +58,13 @@ const evaluate = (game) => {
   let score = 0;
   score += evaluatePieceScore(game.fen());
   score += evaluateCheckmateScore(game);
-  // score += evaluatePositionScore(game);
+  score += evaluatePositionScore(game);
   return score;
 };
 
 const evaluatePieceScore = (fen) => {
   // get piece letters from fen only
-  fen = game.fen().split(" ")[0].replaceAll("/", "");
-  fen = fen.replaceAll(/[0-9]/g, "");
+  fen = fen.split(" ")[0].replaceAll("/", "").replaceAll(/[0-9]/g, "")
 
   // tabulate piece values - since computer is black, white reduce score, black increase score
   let score = 0;
@@ -89,17 +81,32 @@ const evaluatePieceScore = (fen) => {
 };
 
 const evaluatePositionScore = (game) => {
-  console.log(game.board());
-  // use piece position tables to evaluate score
+  piecePositions = game.board();
+  // console.log(piecePositions)
+  score = 0;
+  for (let i = 0; i < 8; i ++) 
+  {
+    for (let j = 0; j < 8; j++) 
+    {
+      let piece = piecePositions[i][j];
+      if (piece) 
+      {
+        const isWhite = piece.color === "w"
+        if (isWhite)
+        {
+          score -= POSITION_VALUES[piece.type.toLowerCase()][i][j];
+        } else {
+          score += POSITION_VALUES[piece.type.toLowerCase()][7-i][j];
+        }
+      }
+    }
+  }
+  return score;
 };
 
 const evaluateCheckmateScore = (game) => {
   if (game.in_checkmate()) {
-    return game.turn() === "w" ? 9999 : -9999;
+    return game.turn() === "w" ? 99999 : -99999;
   }
   return 0;
-};
-
-const evaluateGameProgressionState = (game) => {
-  // categorize game state into opening, midgame, endgame
 };

@@ -1,15 +1,15 @@
 import { Chess } from "./chess.js";
 
-const isPawnPromoted = (source, target, piece) => {
-  if (piece.charAt(1) == "P") {
-    if (
-      (source.charAt(1) == 7 && target.charAt(1) == 8) ||
-      (source.charAt(1) == 2 && target.charAt(1) == 1)
-    ) {
-      return true;
-    }
-  }
-};
+// const isPawnPromoted = (source, target, piece) => {
+//   if (piece.charAt(1) == "P") {
+//     if (
+//       (source.charAt(1) == 7 && target.charAt(1) == 8) ||
+//       (source.charAt(1) == 2 && target.charAt(1) == 1)
+//     ) {
+//       return true;
+//     }
+//   }
+// };
 
 const onDragStart = (source, piece, position, orientation) => {
   // don't move other side pieces or if game is over
@@ -78,11 +78,6 @@ const resetGame = () => {
   board.start();
 };
 
-const updateVisibleInfo = () => {
-  document.getElementById("fen").innerHTML = "FEN: " + game.fen();
-  document.getElementById("pgn").innerHTML = "PGN: " + game.pgn();
-}
-
 var game = new Chess();
 var board = new Chessboard("board", {
   draggable: true,
@@ -102,10 +97,15 @@ const engine = new Worker("engine.js");
 engine.onmessage = (e) => {
   // run computer move and update board
   let computerMove = e.data.move;
-  game.move(computerMove);
-  board.position(game.fen());
-  document.getElementById("turnInfo").innerHTML = "Your Turn"
-  updateVisibleInfo();
+  if (computerMove) {
+    game.move(computerMove);
+    board.position(game.fen());
+    document.getElementById("turnInfo").innerHTML = "Your Turn";
+  }
+  console.log("GOT MESSAGE", e.data);
+  document.getElementById("fen").innerHTML = "FEN: " + game.fen();
+  document.getElementById("pgn").innerHTML = "PGN: " + game.pgn();
+  document.getElementById("score").innerHTML = -e.data.score;
 
   // check if game over after computer's move
   if (game.game_over()) endGame();
