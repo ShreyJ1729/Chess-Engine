@@ -91,7 +91,7 @@ var board = new Chessboard("board", {
 });
 
 // initialize chess engine
-const engine = new Worker("./engine.js");
+const engine = new Worker("/src/engine.js");
 
 // listen to engine messages
 engine.onmessage = (e) => {
